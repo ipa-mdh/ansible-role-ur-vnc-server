@@ -1,0 +1,95 @@
+---
+# tasks file for install_vnc
+- block:
+  - name: Check if magic file exists
+    stat:
+      path: "{{tmp_path}}/urmagic_x11vnc.sh"
+    register: stat_magic_script
+    tags:
+      - download
+      - vnc
+  - debug:
+      msg: "{{stat_magic_script.stat.exists}}"
+ 
+  - name: Unpack magic file
+    ansible.builtin.unarchive:
+      src: "{{role_path}}/files/URMagic_VNC_Installation_V1.zip"
+      dest: "{{tmp_path}}"
+    tags:
+      - download
+      - vnc
+    when: not stat_magic_script.stat.exists
+
+  - name: Change password
+    ansible.builtin.replace:
+      path: "{{tmp_path}}/urmagic_x11vnc.sh"
+      regexp: "easybot"
+      replace: "{{new_password}}"
+    tags: 
+      - password
+      - vnc
+    when: change_password
+
+  - name: Edit script
+    ansible.builtin.lineinfile:
+      path: "{{tmp_path}}/urmagic_x11vnc.sh"
+      regexp: "{{item}}"
+      state: absent
+    loop: "{{replace_block}}"
+    tags:
+      - vnc
+  
+  - name: Start installation
+    ansible.builtin.command:
+      cmd: "sh urmagic_x11vnc.sh {{tmp_path}}"
+      chdir: "{{tmp_path}}"
+    register: command_result
+    ignore_errors: true
+    #Error aosd_cat can be ignored
+    tags:
+      - install
+      - vnc
+  
+  - name: Check if .tigervnc file exists
+    stat:
+      path: "{{path_vnc_remote}}/{{tigervnc_filename}}"
+    register: stat_tigervnc_file
+    tags:
+      - copy
+      - vnc
+
+  - block:
+    - name: Copy .tigervnc template to remote machine
+      ansible.builtin.template:
+        src: "{{role_path}}/files/{{tigervnc_filename}}"
+        dest: "{{path_vnc_remote}}/{{tigervnc_filename}}"
+
+    - name: Add ip adress to template
+      ansible.builtin.lineinfile:
+        #add ip adress
+        line: "ServerName={{ansible_host}}"
+        regexp: "^ServerName="
+        path: "{{path_vnc_remote}}/{{tigervnc_filename}}"
+    
+    tags:
+      - vnc
+      - copy
+    when: not stat_tigervnc_file.stat.exists  
+
+  - block:
+    - name: Copy passwd to workstation
+      ansible.builtin.fetch:  
+        dest: "~/.vnc/"
+        src: "{{path_vnc_remote}}/{{passwd_filename}}"
+        flat: true
+
+    - name: Copy configuration file to workstation
+      ansible.builtin.fetch:  
+        dest: "~/.vnc/"
+        src: "{{path_vnc_remote}}/{{tigervnc_filename}}"
+        flat: true
+
+    tags:
+      - copy
+      - vnc
+  become: true #this entire role now has privilege.(On the UR, installation is in root)

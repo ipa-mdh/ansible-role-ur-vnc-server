@@ -1,0 +1,13 @@
+---
+# defaults file for install_vnc
+# url_magic_file: "https://global.discourse-cdn.com/business7/uploads/universal_robots/original/1X/0c55e5facb16de1c931a61138e9608f2b4a4b031.zip"
+tmp_path: "/tmp"
+change_password: False
+new_password: easybot
+replace_block:
+  - 'if \[ "\$1" = "" \] ; then$' 
+  - 'log "no mountpoint supplied, exiting\."$'
+  - 'exit 1 ; fi$'
+path_vnc_remote: "/root/.vnc"
+passwd_filename: "passwd"
+tigervnc_filename: ur.tigervnc
